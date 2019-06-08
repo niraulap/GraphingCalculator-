@@ -1,0 +1,236 @@
+#define M_PI 3.14159265358979323846
+#define M_PI_2 (3.14159265358979323846/2)
+#define M_PI_4 (3.14159265358979323846/4)
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+
+// All the function declarations 
+/*******************************************************************************/
+float get_x (int index, float x_scale, float x_shift);
+void cosine (float values[], size_t len, float x_scale, float x_shift);
+void polynomial (float coeffs[], size_t degree, float values[], size_t len, float x_scale, float x_shift);
+float powerf (float x, int y);
+void range (float values[], size_t len, float *p_max, float *p_min);
+int quantize (double value, int levels, float min, float max);
+void scale (const float values[], int scaled[], size_t len, size_t height, float min, float max);
+void plot (const float values[], char symbol, int len, int height);
+/*******************************************************************************/
+
+
+
+
+// Main Program Starts Here 
+/*******************************************************************************/
+
+/*Procedure to convert the array 'index' to the mathematical function input x using the scale factor 'x_scale' and shift factor 'x_shift' 
+Paramters: index (int), x_scale (float), x_shift (float)
+Pre-condition: index should be positive
+post-condition: returns unique x value (of float type) for each 'index'*/ 
+float
+get_x (int index, float x_scale, float x_shift)
+{
+  return (float) (index * x_scale) - x_shift;//return x 
+}//get_x 
+
+
+/*Procedure that fills the given array values[]  with the values of cos(get_x (index, x_scale, x_shift)) for each index from 0 to len
+Parameters: values [] (float), len (size_t), x_scale (float), x_shift (float)
+Pre-condition : len should be positive, values [] should be array with len elements 
+Post-condition:values[index] should have elements of cos(get_x (index, x_scale, x_shift)) where index is index for array values */  
+void
+cosine (float values[], size_t len, float x_scale, float x_shift)
+{
+  for (int idx = 0; idx < len; idx++)
+    {
+      float x = get_x (idx, x_scale, x_shift); //get x based on idx, x_scale and x_shift 
+      values[idx] = cos (x); // store cos(x) to values[idx]
+    }
+}//cosine 
+
+
+/* Procedure that fills the given array values with a polyonial y(x) using the coefficients in coeffs[] 
+Paramters: coeffs [] (float), degree (size_t), values [] (float), len (size_t)
+Pre-condition: degree should be positive, len should be positive, values[] should have len elements, coeffs [] should have degree elements 
+Post-condition:values [i] should have  (coeff [0]*(get_x (i, shift, scale))^0 + coeff [1]*(get_x (i, shift, scale))^1 .. + coeff [degree]*(get_x (i, shift, scale))^degree)  where i is index of the array*/ 
+void
+polynomial (float coeffs[], size_t degree, float values[], size_t len,
+	    float x_scale, float x_shift)
+{
+  float x = 0;
+  float temp = 0;
+  float value_of_this_coeff = 0;
+    for (int idx = 0; idx < len; idx++) //loop for each index of the values 
+    {
+      x = get_x (idx, x_scale, x_shift);
+      for (int i = 0; i <= degree; i++)//loop for each part of the polynomial until the degree is met 
+      {
+	  value_of_this_coeff = (coeffs[i] * powerf (x, i));
+	  temp = temp + value_of_this_coeff;
+	  }
+      values[idx] = temp;
+      temp = 0;
+    }
+}//polynomial 
+
+
+/*Procedure to raise a number by a power. 
+Parameters: x (float), y (int)
+Pre-condition: none 
+Post-condition: returns the final product as a float when 'x' is  multiplied by itself 'y' number of times 
+		       if y is even, always returns even value */ 
+float 
+powerf (float x, int y)
+{
+  float temp;
+  if (y == 0)
+    return 1;
+  temp = powerf (x, y / 2);
+  if ((y % 2) == 0)
+    {
+      return temp * temp;
+    }
+  else
+    {
+      if (y > 0)
+	return x * temp * temp;
+      else
+	return (temp * temp) / x;
+    }
+}//powerf 
+
+
+/* Procedure to find the maximum and minimum values in the given array.
+Parameters: values [] (float), len (size_t), 
+Pre-condition :len should be positive, values[] should have len elements, 
+               p_max should point to varibale that stores maximum value, p_min should point to varibale that stores minimum value,
+Post-condition: *p_max > *p_min after execution and *p_max and *p_min should be a member of the array values[]*/ 
+
+void
+range (float values[], size_t len, float *p_max, float *p_min)
+{
+  *p_min = values[0];
+  *p_max = values[0];
+  for (int idx = 1; idx < len; idx++)
+    {
+      if (values[idx] < *p_min)
+	{
+	  *p_min = values[idx];
+	}
+      if (values[idx] > *p_max)
+	{
+	  *p_max = values[idx];
+	}
+    }
+}//range 
+
+
+/*Procedure to  to shift, scale, and round-off the y-values so  the result can be used as a discrete row for the plot point 
+Parameters: value (double), levels (int), min (float), max (float)
+Pre_condition: max > min,  levels is positive
+Post_condition : returns integer between 0 and (levels-1)*/ 
+int
+quantize (double value, int levels, float min, float max)
+{
+  float level_interval = (max - min) / levels;
+  float max_value_of_current_level = level_interval + min;
+  float max_value_of_last_level = min;
+
+  if (value == max)
+    {
+      return (levels - 1);
+    }
+
+  for (int i = 0; i < levels; i++)
+    {
+      if (value < max_value_of_current_level
+	  && value >= max_value_of_last_level)
+	{
+	  return i;
+	}
+      else
+	{
+	  max_value_of_last_level = max_value_of_last_level + level_interval;
+	  max_value_of_current_level =
+	    max_value_of_current_level + level_interval;
+	}
+    }
+}//quantize 
+
+
+/* Procedure to convert continous values in an array to discrete values by shifting, scaling, and rounding-off the values
+Parameters: values [] (float), scaled [] (int), len (size_t), height (size_t)
+Pre-condition: len should be positive, height should be positive, max > min , values [] should have len elements, scaled [] should have len elements 
+Post-condition: each element of scaled [] should be changed to an integer between 0 and (height-1)*/ 
+void
+scale (const float values[], int scaled[], size_t len, size_t height,
+       float min, float max)
+{
+  int temp;
+  for (int i = 0; i < len; i++)
+    {
+      temp = quantize (values[i], height, min, max);
+      scaled[i] = temp;
+    }
+} //scale 
+
+
+/* Procedure to plot 
+Parameters: values [], symbol, len, height 
+Pre-condition: len should be positive, height should be positive 
+Post-condition: should plot user desired graph using the symbol provided with height levels */ 
+void
+plot (const float values[], char symbol, int len, int height)
+{
+  float min = 0;
+  float max = 0;
+  float *p_min = &min;
+  float *p_max = &max;
+  int idx = 0;
+  range (values, len, &max, &min);
+  int temp_y[len];
+  scale (values, temp_y, len, height, min, max);
+
+
+  for (int i = (height - 1); i >= 0; i--)//prints from top to bottom 
+    {
+      for (int j = 0; j < len; j++)//prints from left to right 
+	{
+	  if (temp_y[j] == i) //prints symbol 
+	    {
+	      printf ("%c", symbol);
+	    }
+
+	  else //prints empty space 
+	    {
+	      printf (" ");
+	    }
+	}
+      //next line 
+      printf ("\n");
+    }
+}//plot 
+
+
+
+//main starts here 
+int
+main (void)
+{
+  int SCREEN_WIDTH = 80;
+  int SCREEN_HEIGHT = 60;
+  
+  float values[SCREEN_WIDTH];
+  cosine (values, SCREEN_WIDTH, 0.15, 0.0);
+  printf ("Cosine\n");
+  plot (values, '*', SCREEN_WIDTH, SCREEN_HEIGHT);
+  float cubic[] = { 0, 1, 18, 1 };
+  polynomial (cubic, 3, values, SCREEN_WIDTH, 0.375, 20);
+  printf ("Cubic\n");
+  plot (values, '*', SCREEN_WIDTH, SCREEN_HEIGHT);
+
+  return 0;
+}// main 
+
+
